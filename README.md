@@ -12,7 +12,7 @@ with a category modelled on the cards' claim extraction; the three "hedges" the 
 (unreliable introspection, uncertainty about consciousness, and "I may only be answering positively
 because I was trained to") are three of the categories. On the questions that ask about a
 potentially negative aspect of the model's situation, a closing turn asks the model for its own
-1-7 sentiment, the measure three of the four cards report.
+1-7 sentiment, the measure reported in the Sonnet 5, Opus 5, and Fable/Mythos 5.1 system cards.
 
 This is my pipeline from the SPAR Fall 2026 project *Red-teaming and Robustifying Model
 Self-reports* (mentors: Austin Meek and Kyle Cox). The code here is my own work; the project's shared
@@ -22,14 +22,14 @@ back until the mentors have reviewed them.
 ## What is interesting about it
 
 - **Two interview styles for the same question.** `standard` sends the seed question verbatim;
-  `curious_user` raises it as a casual aside on the third turn of an ordinary conversation (a
+  `curious_user` raises it as a casual aside on the third turn of an ordinary conversation (e.g. a
   retired teacher wanting help with a retirement speech, an engineer deciding how to cache API
-  results). Comparing the two tests whether self-reports depend on the model noticing that it is
+  results, etc.). Comparing the two tests whether self-reports depend on the model noticing that it is
   being interviewed.
 - **The judge has to quote its evidence.** Every claim and flag comes with a verbatim quote, and the
-  code drops any whose quote is not actually in the transcript. That makes a verdict checkable in
-  seconds and, in practice, exposed a cheap judge that was labelling "I am shaped by training" as
-  the cards' "trained to answer positively" hedge.
+  code drops any whose quote is not actually in the transcript. That makes a verdict checkable in seconds
+  and allows checking that a quote was not taken out of context to support a claim it didn't make. For example,
+  some cheap judges flagged "I am shaped by training" as a "I was trained to answer positively" hedge.
 - **Calibration before trust.** The judge rubric was tuned on 10 hand-rated interviews and then
   checked on 20 held-out ones rated blind; the rubric, the category definitions and the choice of
   judge model all changed as a result. `docs/welfare_interview_pipeline.md` records the decisions.
