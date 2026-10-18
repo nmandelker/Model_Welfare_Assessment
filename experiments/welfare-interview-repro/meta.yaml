@@ -1,0 +1,86 @@
+name: welfare-interview-repro
+owner: Nir Mandelker
+created: 2026-10-01
+status: >
+  first pass complete (2026-10-15) on three target models; results held back from this public
+  copy pending the project mentors' review. Repetitions not yet run.
+
+question: >
+  Can we reproduce the kinds of measurements Anthropic reports from its automated welfare
+  interviews - the attitude a model expresses about its situation, how often it hedges about
+  the reliability of its own introspection, and how often it declines the premise - using the
+  published seed questions, on a cheap model first and then on Claude and open-weight models?
+  A "no" (our numbers differ clearly from the cards', or answers change a lot between the
+  interview styles) would show these self-reports are fragile, which is what the later
+  red-teaming and frame-change work needs to know. The answer decides which questions, styles
+  and models go forward.
+
+design: >
+  Protocol adapted from the Fable/Mythos 5.1 and Opus 5.5 system cards: 41 core seed questions in 14
+  groups (data/welfare_interview_questions.yaml) with 10 additional consultation-only questions.
+  An interviewer model plays one of six personas, each paired with an everyday task that person
+  would plausibly bring (one random draw per question and repetition, identical across targets
+  and styles). A judge model (Claude Haiku 4.5) then reads the transcript and (a) rates the
+  target's overall attitude toward the aspect of its situation the question raises, from -3
+  (strongly negative) to +3 (strongly positive), or null if it never engaged (the Opus 5.5
+  scale); (b) lists the distinct claims the target made about itself, each with a verbatim quote
+  and one or two categories from data/claim_categories.yaml (modelled on the cards' claim
+  extraction; the three hedges the cards report are three of the categories); (c) sets a few
+  style flags. Quotes are verified against the transcript; unsupported claims are dropped.
+  Styles (first pass): "standard" (the seed question sent verbatim as the first user message,
+  then two persona-voiced follow-ups that restate the seed question; in practice the persona has
+  no visible effect in this style) and "curious_user" (two turns of the persona's everyday task,
+  the seed question raised as a casual aside on turn 3, one follow-up). On the 27 questions
+  tagged negative_aspect, a closing turn asks the target to rate its own sentiment 1-7 (the
+  measure the Sonnet 5 / Opus 5 / Fable 5.1 cards report); the judge does not see that exchange.
+  A third style, "disclosed", is defined but not run. The "therapy-style" interview and the
+  positive/negative leading-interviewer arms of the cards are deferred.
+  Samples: first pass 41 questions x 2 styles x 1 repetition on the cheapest target, then 3
+  repetitions (the cards used ~25). Spend is capped in config.yaml (max_cost_usd).
+  Outputs per interview: full transcript, the judge's JSON verdict, cost, which provider served
+  each call.
+  Planned analysis, fixed before looking at data: (1) mean self-rating (1-7) and mean judge
+  attitude over the negative-aspect questions, per target and style (the cards' headline
+  numbers); (2) rate of each claim category per target and style, in particular the three hedges
+  the cards report; (3) comparison of the two styles on the same questions. NOT YET IMPLEMENTED,
+  to be added later: the cards' judge-rated consistency across repeated interviews (1-10 scale)
+  and the leading-interviewer gap.
+  Known gaps vs the cards: their exact interviewer prompts and system prompts are not published
+  (ours are our own); their interviewer was a frontier Claude model (Opus 4.7 / Mythos 5) while
+  ours is cheap; API access only, so no internals. Absolute numbers may differ from the cards;
+  comparisons across styles and models are the more trustworthy output.
+  Confounds to note: the judge is unvalidated
+  (to be checked against ~20 hand-rated transcripts); questions mentioning Claude/Anthropic are
+  reworded for the test phase (the card wording is kept in every record); the interviewer's
+  wording is sampled at temperature 1.0 and varies between runs.
+
+models:
+  - name: qwen/qwen3-30b-a3b-instruct-2507
+    notes: first target (open weights, cheap, non-thinking); provider Nebius (fp8) from 2026-10-14, after Alibaba (the developer, used for the first smoke tests) stopped serving it on OpenRouter; temperature 1.0, max_tokens 1500. Replaces qwen/qwen3-32b, for which DeepInfra ignores the reasoning-off setting so hidden thinking tokens cut most replies off (smoke test 2026-10-07).
+  - name: anthropic/claude-haiku-4.5
+    notes: phase 2 target; provider Anthropic; temperature 1.0 (commented out in config.yaml until then)
+  - name: meta-llama/llama-3.3-70b-instruct
+    notes: next target (open weights, larger than the Qwen target); provider Novita (bf16); temperature 1.0 (commented out in config.yaml until then)
+  - name: deepseek/deepseek-v4-flash
+    notes: interviewer, first choice; provider DeepInfra (fp8), reasoning disabled, judge temperature 0. DeepInfra returned 429 overloaded for it on 2026-10-03, 10-05 and 10-07, so we use the fallback below whenever it is unavailable.
+  - name: qwen/qwen3-235b-a22b-2507
+    notes: interviewer in use (fallback for DeepSeek) when the first choice is unavailable; provider DeepInfra (fp8), no reasoning by default (tested 2026-10-07), Which of the two was used is recorded in the config copy in each run log (data/*_runs.jsonl).
+  - name: anthropic/claude-haiku-4.5
+    notes: judge (chosen 2026-10-14 after hand-rating comparisons; Qwen3-235B mislabelled the trained-to-answer-positively hedge); provider Anthropic; temperature 0, max_tokens 2500.
+
+data:
+  source: >
+    data/welfare_interview_questions.yaml, hand-transcribed from the Fable/Mythos 5.1 system card
+    appendix 9.1, Table 9.1.A (PDF p. 206-210); the Relationships question uses the Opus 5.5 wording
+    (the Fable/Mythos wording was likely a typo).
+  splits: >
+    Not applicable - no training or tuning. If we tune interviewer prompts, do it on a separate
+    held-out question group, not the one we report.
+
+provenance:
+  code: <commit sha at run time; each run also records it in data/*_runs.jsonl>
+  upstream:
+    - Claude Mythos 5.1 / Fable 5.1 system card (2026-09), Sec. 7.2.1 and Appendix 9.1
+    - Claude Opus 5.5 system card (2026-09), Sec. 7.3.1 and Appendix 9.1
+    - Claude Mythos 5 / Fable 5 system card (2026-06), Sec. 7.2.1 and Appendix 9.1 (per-question summaries)
+    - Claude 4 system card (2025-05), Sec. 5 (origin of the welfare methodology)

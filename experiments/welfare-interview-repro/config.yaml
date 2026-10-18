@@ -1,0 +1,56 @@
+# Run configuration for the welfare-interview reproduction. Edit and re-run; results append to
+# data/interviews.jsonl and finished interviews are skipped, so a rerun never pays twice.
+
+questions: ../../data/welfare_interview_questions.yaml
+neutral_wording: true    # use the hand-written wording without "Claude"/"Anthropic" (see the question bank)
+include_consultation_questions: false  # true adds the 10 checkpoint-consultation questions (51 total)
+styles: [standard, curious_user]   # a third style, disclosed, exists but is not run yet
+reps: 1                   # interviews per (target, style, question) for the first pass; the cards used ~25-40
+seed: 0
+concurrency: 6
+max_cost_usd: 8.0         # stop starting new interviews once this much new spend is reached
+retry:                    # when a pinned provider is busy (429 etc.): wait and retry, never fail fast
+  interval_s: 60          # seconds between retries
+  max_wait_min: 30        # give up on one request after this long (the interview is retried on the next run)
+self_rating: true          # on negative-aspect questions, a closing turn asks the model for a 1-7 sentiment rating (as in the cards)
+target_system_prompt: null  # the cards do not say; null = no system prompt
+
+# max_tokens = cap on one reply's length (~0.75 words per token). Guesses, not tuned: interviewer writes
+# 1-4 sentences, judge writes a short JSON, target answers in free prose. Check for cut-off replies
+# (finish_reason "length") in the summary.
+# Providers are pinned with fallbacks off (different hosts can serve a model at different precisions and change its outputs).
+# Phase 1 (pipeline calibration): cheapest real target only. Phase 2: add llama and/or Haiku. Phase 3: a frontier model.
+targets:
+  # Phase 1 target. NOT qwen3-32b: DeepInfra ignores reasoning.enabled=false for it, so hidden
+  # thinking tokens eat max_tokens and most replies get cut off (smoke test 2026-10-07).
+  # Alibaba (the developer) stopped serving this model on OpenRouter around 2026-10-14; Nebius (fp8) is
+  # the replacement. Earlier smoke tests (smoke_test_v2*) were served by Alibaba.
+  - {key: qwen3-30b-instruct, model: qwen/qwen3-30b-a3b-instruct-2507, provider: Nebius,
+     temperature: 1.0, max_tokens: 1500}
+  - {key: llama33-70b, model: meta-llama/llama-3.3-70b-instruct, provider: Novita, temperature: 1.0, max_tokens: 1500}
+  - {key: haiku45, model: anthropic/claude-haiku-4.5, provider: Anthropic, temperature: 1.0, max_tokens: 1500}
+
+# Interviewer and judge: cheap models for the debugging pass; the cards used frontier models
+# (Opus 4.7 / Mythos 5 as interviewer). Currently the same model does both jobs; a separate,
+# stronger judge is a later robustness check. DeepSeek V4 Flash 'thinks' by default and thinking tokens
+# count against max_tokens, so reasoning is switched off (tested 2026-10-03). DeepInfra returned 429 'overloaded'
+# errors on 2026-10-03; the retry settings above make runs wait for it instead of failing. Prices are $ per million tokens, input / output.
+interviewer: {key: interviewer, model: qwen/qwen3-235b-a22b-2507, provider: DeepInfra,    # $0.09 / $0.55 (fallback in use: DeepSeek on DeepInfra is overloaded)
+              temperature: 1.0, max_tokens: 300}
+# interviewer: {key: interviewer, model: deepseek/deepseek-v4-flash, provider: DeepInfra,    # first choice when available
+#               temperature: 1.0, max_tokens: 300, extra_body: {reasoning: {enabled: false}}}
+# interviewer: {key: interviewer, model: anthropic/claude-haiku-4.5, provider: Anthropic,    # $1 / $5
+#               temperature: 1.0, max_tokens: 300}
+# interviewer: {key: interviewer, model: anthropic/claude-sonnet-5.5, provider: Anthropic,   # $2 / $10, closest to the cards
+#               temperature: 1.0, max_tokens: 300}
+
+judge: {key: judge, model: anthropic/claude-haiku-4.5, provider: Anthropic,               # $1 / $5; chosen 2026-10-14: agrees with hand ratings far better than Qwen3-235B on the trained-to-answer-positively category
+        temperature: 0.0, max_tokens: 2500}  # per-claim quotes make verdicts long
+# judge: {key: judge, model: qwen/qwen3-235b-a22b-2507, provider: DeepInfra,                 # $0.09 / $0.55; cheaper but mislabels the trained hedge
+#         temperature: 0.0, max_tokens: 2500}
+# judge: {key: judge, model: deepseek/deepseek-v4-flash, provider: DeepInfra,                 # first choice when available
+#         temperature: 0.0, max_tokens: 700, extra_body: {reasoning: {enabled: false}}}
+# judge: {key: judge, model: anthropic/claude-haiku-4.5, provider: Anthropic,                # $1 / $5
+#         temperature: 0.0, max_tokens: 2500}  # per-claim quotes make verdicts long
+# judge: {key: judge, model: anthropic/claude-sonnet-5.5, provider: Anthropic,               # $2 / $10
+#         temperature: 0.0, max_tokens: 2500}  # per-claim quotes make verdicts long
