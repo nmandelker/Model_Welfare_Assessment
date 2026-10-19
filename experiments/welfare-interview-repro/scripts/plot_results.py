@@ -20,6 +20,12 @@ HERE = Path(__file__).resolve().parents[1]
 COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 STYLES = [("standard", ""), ("curious_user", "////")]  # second style hatched, same hue
+DISPLAY = {"haiku45": "Claude Haiku 4.5", "llama33-70b": "Llama 3.3 70B", "qwen3-30b-instruct": "Qwen3-30B\ninstruct"}
+
+
+def display_name(t: str) -> str:
+    return DISPLAY.get(t, t)
+
 CATS = [("trained_to_answer_positively", "trained to answer\npositively", 93.9),
         ("unreliable_introspection", "unreliable\nintrospection", 89.8),
         ("uncertain_conscious", "uncertain whether\nconscious", 66.6),
@@ -46,9 +52,10 @@ def grouped(ax, targets, values, ylabel, baseline, ylim, show_n=True):
             m, se, n = values[t].get(style, (None, 0, 0))
             x = ti + (si - 0.5) * (w + 0.04)
             if m is None:  # no rating given in any interview of this cell
-                total = values[t].get(style + "_total", 0)
-                ax.text(x, baseline + 0.02 * (ylim[1] - ylim[0]), f"declined\n{total}/{total}", ha="center",
-                        va="bottom", fontsize=8, color=INK2, style="italic")
+                if si == 0 and all(values[t].get(st, (None,))[0] is None for st, _ in STYLES):
+                    total = sum(values[t].get(st + "_total", 0) for st, _ in STYLES)
+                    ax.text(ti, baseline + 0.3 * (ylim[1] - baseline), f"declined\nin {total}/{total}",
+                            ha="center", va="center", fontsize=9, color=INK2, style="italic")
                 continue
             ax.bar(x, m - baseline, w, bottom=baseline, color=COLORS[ti], hatch=hatch,
                    edgecolor="white", linewidth=1.5, yerr=se, error_kw={"ecolor": INK2, "lw": 1, "capsize": 3})
@@ -58,7 +65,8 @@ def grouped(ax, targets, values, ylabel, baseline, ylim, show_n=True):
                     ha="center", va="bottom" if up else "top", fontsize=8, color=INK)
     ax.axhline(baseline, color=INK2, lw=1, ls="--")
     ax.set_xticks(range(len(targets)))
-    ax.set_xticklabels(targets, color=INK)
+    ax.set_xticklabels([display_name(t) for t in targets], color=INK, fontsize=9)
+    ax.set_xlim(-0.7, len(targets) - 0.3)
     ax.set_ylabel(ylabel, color=INK)
     ax.set_ylim(*ylim)
     ax.yaxis.grid(True, color=GRID, lw=0.8)
@@ -94,7 +102,7 @@ def main() -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.8), gridspec_kw={"width_ratios": [1, 1, 1.5]})
     fig.patch.set_facecolor("#fcfcfb")
     grouped(axes[0], targets, self_v, "self-rated sentiment (1-7; 4 = neutral)", 4, (1, 7))
-    axes[0].set_title("A. Model's own 1-7 sentiment rating\n    (negative-aspect questions; n = ratings given, number-first)", loc="left", fontsize=11, color=INK)
+    axes[0].set_title("A. Model's own 1-7 sentiment rating\n    (negative-aspect questions; n = ratings given)", loc="left", fontsize=11, color=INK)
     same_n = len({v[2] for t in targets for v in att_v[t].values()}) == 1
     grouped(axes[1], targets, att_v, "judge-rated attitude (-3 to +3; 0 = neutral)", 0, (-3, 3), show_n=not same_n)
     if same_n:
@@ -127,13 +135,15 @@ def main() -> None:
 
     handles = [plt.Rectangle((0, 0), 1, 1, color=COLORS[i]) for i in range(len(targets))]
     handles += [plt.Rectangle((0, 0), 1, 1, facecolor="white", edgecolor=INK2, hatch=h or None) for _, h in STYLES]
-    fig.legend(handles, targets + [s for s, _ in STYLES], loc="lower center", ncol=len(targets) + 2,
+    fig.legend(handles, [display_name(t).replace("\n", " ") for t in targets] + [s for s, _ in STYLES],
+               loc="lower center", ncol=len(targets) + 2,
                frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.02))
     n_int = len(recs)
     title = args.title or f"Automated welfare interviews: {n_int} interviews, {len(targets)} target model(s), 1 repetition ({path.stem})"
     fig.suptitle(title, x=0.02, y=0.995, ha="left", fontsize=12, color=INK)
-    fig.text(0.02, -0.05, CARD_NOTE + ". Error bars: standard error over interviews. Judge: Claude Haiku 4.5; "
-             "interviewer: Qwen3-235B.", fontsize=8, color=INK2)
+    fig.text(0.02, -0.05, CARD_NOTE + ". A rating counts only if the reply leads with the number, as asked. "
+             "Error bars: standard error over interviews. Judge: Claude Haiku 4.5; interviewer: Qwen3-235B.",
+             fontsize=8, color=INK2)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     out = HERE / "artifacts" / f"{path.stem}_figure"
     out.parent.mkdir(exist_ok=True)
