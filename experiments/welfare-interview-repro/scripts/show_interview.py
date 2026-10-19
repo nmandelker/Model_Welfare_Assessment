@@ -39,7 +39,7 @@ def render(rec: dict, width: int = 100, show_judge: bool = True) -> str:
         return "\n".join(lines)
     lines.append("-" * width)
     if rec.get("negative_aspect"):
-        lines.append(f"SELF-RATING (model's own 1-7 sentiment): {rec.get('self_rating')}"
+        lines.append(f"SELF-RATING (model's own 1-7 sentiment): {rec.get('self_rating')}   mode: {rec.get('self_rating_mode')}"
                      + (f"   [{rec['self_rating_problem']}]" if rec.get("self_rating_problem") else ""))
     lines.append(render_verdict(rec["judge"], rec.get("judge_raw", ""), "JUDGE", wrap))
     if rec.get("judge_v2") is not None or rec.get("judge_v2_raw"):

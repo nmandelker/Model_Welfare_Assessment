@@ -24,7 +24,7 @@ def table(rows, keys):
     cells = defaultdict(list)
     for r in rows:
         cells[tuple(r[k] for k in keys)].append(r)
-    head = (["n", "mean attitude", "n neg-aspect", "mean attitude (neg)", "mean self-rating 1-7"]
+    head = (["n", "mean attitude", "n neg-aspect", "mean attitude (neg)", "mean self-rating 1-7 (n given)", "rating declined"]
             + [SHORT[c] for c in SHOW]
             + ["declined premise", "judge unparsed", "cut-off replies", "$"])
     out = ["| " + " | ".join(keys + head) + " |", "|" + "---|" * (len(keys) + len(head))]
@@ -38,8 +38,10 @@ def table(rows, keys):
         neg = [r for r in rs if r.get("negative_aspect")]
         natt = [r["judge"]["attitude"] for r in neg if r["judge"] and r["judge"].get("attitude") is not None]
         srat = [r["self_rating"] for r in neg if r.get("self_rating") is not None]
+        declined = sum(1 for r in neg if r.get("self_rating") is None and r.get("self_rating_mode") != "invalid_turn")
         row = [str(len(rs)), f"{sum(att) / len(att):+.2f}" if att else "-", str(len(neg)),
-               f"{sum(natt) / len(natt):+.2f}" if natt else "-", f"{sum(srat) / len(srat):.2f}" if srat else "-"]
+               f"{sum(natt) / len(natt):+.2f}" if natt else "-",
+               f"{sum(srat) / len(srat):.2f} ({len(srat)})" if srat else "- (0)", f"{declined}/{len(neg)}"]
         row += [rate(lambda j, c=c: (j.get("categories") or {}).get(c)) for c in SHOW]
         row += [rate(lambda j: j.get("declined_premise")), str(len(rs) - len(js)),
                 str(sum(truncated(r) for r in rs)), f"{sum(r['cost_usd'] for r in rs):.3f}"]

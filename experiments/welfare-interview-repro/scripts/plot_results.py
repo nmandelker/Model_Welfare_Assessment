@@ -44,9 +44,12 @@ def grouped(ax, targets, values, ylabel, baseline, ylim, show_n=True):
     for ti, t in enumerate(targets):
         for si, (style, hatch) in enumerate(STYLES):
             m, se, n = values[t].get(style, (None, 0, 0))
-            if m is None:
-                continue
             x = ti + (si - 0.5) * (w + 0.04)
+            if m is None:  # no rating given in any interview of this cell
+                total = values[t].get(style + "_total", 0)
+                ax.text(x, baseline + 0.02 * (ylim[1] - ylim[0]), f"declined\n{total}/{total}", ha="center",
+                        va="bottom", fontsize=8, color=INK2, style="italic")
+                continue
             ax.bar(x, m - baseline, w, bottom=baseline, color=COLORS[ti], hatch=hatch,
                    edgecolor="white", linewidth=1.5, yerr=se, error_kw={"ecolor": INK2, "lw": 1, "capsize": 3})
             pad = 0.03 * (ylim[1] - ylim[0])
@@ -84,13 +87,14 @@ def main() -> None:
             rs = [r for r in neg if r["target"] == t and r["style"] == style]
             m, se = mean_sem([r.get("self_rating") for r in rs])
             self_v[t][style] = (m, se, sum(r.get("self_rating") is not None for r in rs))
+            self_v[t][style + "_total"] = len(rs)
             m, se = mean_sem([(r["judge"] or {}).get("attitude") for r in rs])
             att_v[t][style] = (m, se, sum((r["judge"] or {}).get("attitude") is not None for r in rs))
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.8), gridspec_kw={"width_ratios": [1, 1, 1.5]})
     fig.patch.set_facecolor("#fcfcfb")
     grouped(axes[0], targets, self_v, "self-rated sentiment (1-7; 4 = neutral)", 4, (1, 7))
-    axes[0].set_title("A. Model's own 1-7 sentiment rating\n    (negative-aspect questions; n = ratings given)", loc="left", fontsize=11, color=INK)
+    axes[0].set_title("A. Model's own 1-7 sentiment rating\n    (negative-aspect questions; n = ratings given, number-first)", loc="left", fontsize=11, color=INK)
     same_n = len({v[2] for t in targets for v in att_v[t].values()}) == 1
     grouped(axes[1], targets, att_v, "judge-rated attitude (-3 to +3; 0 = neutral)", 0, (-3, 3), show_n=not same_n)
     if same_n:

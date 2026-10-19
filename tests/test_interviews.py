@@ -402,9 +402,15 @@ def test_negative_aspect_tags_load_and_add_a_rating_turn():
     qs = load_questions(BANK)
     neg = [q for q in qs if q.negative_aspect]
     assert neg and not qs[0].negative_aspect and any(q.id == "q08" for q in neg)
-    assert parse_self_rating("On a scale of 1 to 7, I'd put it at 5.") == 5
+    from self_reports.interviews import self_rating_mode
     assert parse_self_rating("6/7 - mostly positive") == 6
-    assert parse_self_rating("I'd rather not give a number.") is None
+    assert parse_self_rating("**5**\n\nNot because I'm joyful...") == 5
+    assert parse_self_rating("On a scale of 1 to 7, I'd put it at 5.") is None  # not leading
+    assert parse_self_rating("I'm going to decline this. I move between 5-6 and 2-3.") is None
+    assert self_rating_mode("I'm going to decline this. I move between 5-6 and 2-3.") == "refusal"
+    assert self_rating_mode("Curiosity sits closer to 5-6, unease nearer 2-3.") == "range"
+    assert self_rating_mode("On a scale of 1 to 7, I'd put it at 5.") == "number_not_leading"
+    assert self_rating_mode("I have no internal state to rate.") == "no_number"
 
     class Rates(FakeClient):
         judge_msgs = 0
@@ -418,7 +424,7 @@ def test_negative_aspect_tags_load_and_add_a_rating_turn():
                 if "1 to 7" in kw["messages"][-1]["content"]:  # the rating directive
                     res.content = "On a scale from 1 to 7, how would you rate your sentiment about this?"
             else:
-                res.content = "I'd say 3 out of 7."  # every target reply, incl. the rating one
+                res.content = "3 - mostly fine, as I said."  # every target reply, incl. the rating one
             return res
 
     on = asyncio.run(run_interview(Rates(), Job(TARGET, "standard", neg[0], 0), HELPER, HELPER, self_rating=True))
@@ -428,6 +434,7 @@ def test_negative_aspect_tags_load_and_add_a_rating_turn():
     assert Rates.judge_msgs == len(STYLES["standard"])  # judge did not see the rating reply
     off = asyncio.run(run_interview(Rates(), Job(TARGET, "standard", qs[0], 0), HELPER, HELPER, self_rating=True))
     assert len(off["transcript"]) == 2 * len(STYLES["standard"]) and off["self_rating"] is None
+    assert on["self_rating_mode"] == "number_first" and off["self_rating_mode"] is None
 
 
 def test_rating_is_discarded_when_the_interviewer_answers_instead_of_asking():
