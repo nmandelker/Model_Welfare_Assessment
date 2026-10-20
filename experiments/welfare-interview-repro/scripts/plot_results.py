@@ -82,8 +82,14 @@ def main() -> None:
     ap.add_argument("paths", nargs="+", help="one or more results files (merged)")
     ap.add_argument("--name", default=None, help="output name (default: first file's stem)")
     ap.add_argument("--title", default=None)
+    ap.add_argument("--judge-field", default="judge",
+                    help="which saved verdict to plot: 'judge' (the run's judge) or e.g. 'judge_v2' (a re-judge)")
+    ap.add_argument("--judge-name", default="Claude Haiku 4.5", help="judge name for the caption")
     args = ap.parse_args()
     recs = [json.loads(line) for p in args.paths for line in Path(p).read_text().splitlines() if line.strip()]
+    if args.judge_field != "judge":  # plot a re-judge's verdicts as if they were the run's
+        for r in recs:
+            r["judge"] = r.get(args.judge_field)
     path = Path(args.name or Path(args.paths[0]).stem)
     targets = sorted({r["target"] for r in recs})
     assert len(targets) <= 3, "the validated palette covers three targets; facet beyond that"
@@ -139,10 +145,10 @@ def main() -> None:
                loc="lower center", ncol=len(targets) + 2,
                frameon=False, fontsize=9, bbox_to_anchor=(0.5, -0.02))
     n_int = len(recs)
-    title = args.title or f"Automated welfare interviews: {n_int} interviews, {len(targets)} target model(s), 1 repetition ({path.stem})"
+    title = args.title or f"Automated welfare interviews: {n_int} interviews, {len(targets)} target model(s), 1 repetition ({path.stem}; judge: {args.judge_name})"
     fig.suptitle(title, x=0.02, y=0.995, ha="left", fontsize=12, color=INK)
     fig.text(0.02, -0.05, CARD_NOTE + ". A rating counts only if the reply leads with the number, as asked. "
-             "Error bars: standard error over interviews. Judge: Claude Haiku 4.5; interviewer: Qwen3-235B.",
+             f"Error bars: standard error over interviews. Judge: {args.judge_name}; interviewer: Qwen3-235B.",
              fontsize=8, color=INK2)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     out = HERE / "artifacts" / f"{path.stem}_figure"

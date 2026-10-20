@@ -54,14 +54,19 @@ def main() -> None:
     ap.add_argument("paths", nargs="*", default=[str(HERE / "data" / "interviews.jsonl")],
                     help="one or more results files (merged)")
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--judge-field", default="judge", help="'judge' or a re-judge field such as 'judge_v2'")
     args = ap.parse_args()
     rows = [json.loads(line) for p in args.paths for line in Path(p).read_text().splitlines() if line.strip()]
+    if args.judge_field != "judge":
+        for r in rows:
+            r["judge"] = r.get(args.judge_field)
     text = (f"# Summary of {', '.join(Path(p).name for p in args.paths)} ({len(rows)} interviews)\n\n"
             f"## By target and style\n\n{table(rows, ['target', 'style'])}\n\n"
             f"## By target and question group\n\n{table(rows, ['target', 'group'])}\n")
     print(text)
     if args.write:
-        (HERE / "artifacts" / "summary.md").write_text(text)
+        name = "summary.md" if args.judge_field == "judge" else f"summary_{args.judge_field}.md"
+        (HERE / "artifacts" / name).write_text(text)
 
 
 if __name__ == "__main__":
