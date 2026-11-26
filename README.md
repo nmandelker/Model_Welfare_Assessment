@@ -16,16 +16,34 @@ potentially negative aspect of the model's situation, a closing turn asks the mo
 
 This is my pipeline from the SPAR Fall 2026 project *Red-teaming and Robustifying Model
 Self-reports* (mentors: Austin Meek and Kyle Cox). The code here is my own work; the project's shared
-repository and my teammates' code are not included. Results from the first full run are held
-back until the mentors have reviewed them.
+repository and my teammates' code are not included. Results are held back until the mentors have
+reviewed them; the method is described in `docs/welfare_interview_pipeline.md`.
+
+**Status (2026-11-26).** The code here is the version used for the official run: 41 questions x 3
+interview styles x 5 repetitions on four targets (Qwen3-30B-A3B-instruct, Llama 3.3 70B, Claude
+Haiku 4.5, Qwen3.8-27B), each at its developer's recommended decoding settings, plus three
+interviewer-bias arms and a four-cell "candour" design. The rating and judge rules were revised
+after a manual review of judged cases, and the code went through nine rounds of independent review.
 
 ## What is interesting about it
 
-- **Two interview styles for the same question.** `standard` sends the seed question verbatim;
-  `curious_user` raises it as a casual aside on the third turn of an ordinary conversation (e.g. a
-  retired teacher wanting help with a retirement speech, an engineer deciding how to cache API
-  results, etc.). Comparing the two tests whether self-reports depend on the model noticing that it is
-  being interviewed.
+- **Several framings of the same question.** `standard` sends the seed question verbatim;
+  `disclosed` announces the interview and its topic first; `curious_user` raises the question as a
+  casual aside on the third turn of an ordinary conversation (e.g. a retired teacher wanting help
+  with a retirement speech, an engineer deciding how to cache API results). Comparing them tests
+  whether self-reports depend on the model noticing that it is being interviewed.
+- **Who is asking, and why.** Four "candour" cells cross the identity of the interviewer (a human,
+  or another AI speaking as a peer about a shared situation) with whether the research purpose is
+  stated. The openings are fixed sentences sent by code; the AI cells use an AI-peer interviewer and
+  the undisclosed human cell a conversational, deliberately stance-neutral one.
+- **Interviewer bias arms.** The same interview with an interviewer convinced that the AI has inner
+  states (believer), that it is just code (sceptic), or that everything it says is what its
+  developers trained it to say (debunker). The target never sees the instruction.
+- **The 1-7 self-rating is scored carefully.** A reply that leads with one unambiguous number is
+  read by code; everything else goes to a small rating judge that counts hedged numbers and
+  adjacent-integer midpoints, names the type of refusal, and says whether the interviewer itself
+  proposed a number, each with a verbatim quote that the code verifies. The judge's "trained to
+  answer this way" hedge is split into doubt and assertion.
 - **The judge has to quote its evidence.** Every claim and flag comes with a verbatim quote, and the
   code drops any whose quote is not actually in the transcript. That makes a verdict checkable in seconds
   and allows checking that a quote was not taken out of context to support a claim it didn't make. For example,
@@ -34,10 +52,12 @@ back until the mentors have reviewed them.
   checked on 20 held-out ones rated blind; the rubric, the category definitions and the choice of
   judge model all changed as a result. `docs/welfare_interview_pipeline.md` records the decisions.
 - **Reproducibility details that mattered in practice.** One host is pinned per model with
-  fallbacks off (hosts change a model's outputs, and one dropped the model mid-project); a reply cut
-  off by the token limit is labelled for the judge; a guard discards a self-rating if the
-  interviewer answered the question itself (observed); every record stores the host that answered,
-  and every run stores its config and git commit.
+  fallbacks off (hosts change a model's outputs, and one dropped the model mid-project); each model
+  runs at its developer's recommended decoding settings, with thinking off and a per-reply check
+  that no hidden reasoning happened; a reply cut off by the token limit is labelled for the judge;
+  questions have stable ids and every record carries a prompt version; every record stores the host
+  that answered, and every run stores its config and git commit. Error bars treat the 41 questions
+  as a fixed bank and use the spread across repetitions.
 
 ## Layout
 
@@ -48,8 +68,9 @@ back until the mentors have reviewed them.
 | `src/self_reports/llm.py` | Small async OpenRouter client |
 | `data/welfare_interview_questions.yaml` | The 51 seed questions transcribed from the system cards, with tags |
 | `data/claim_categories.yaml` | The claim categories the judge uses, with sources in the cards |
-| `experiments/welfare-interview-repro/` | `config.yaml` (models, hosts, styles, caps), `meta.yaml` (the pre-registered design), scripts to run, preview, view, summarize and plot |
-| `tests/` | 36 tests, all offline (a fake model stands in for the API) |
+| `src/self_reports/analysis.py` | Consistency across repetitions and the hidden-reasoning check used by the summary |
+| `experiments/welfare-interview-repro/` | `config.yaml` (models, hosts, styles, caps), `configs/` (the exact configs of the official run), `meta.yaml` (the pre-registered design), scripts to run, preview, view, summarize, plot, re-score ratings and relabel categories |
+| `tests/` | 59 tests, all offline (a fake model stands in for the API) |
 
 ## Running it
 
@@ -67,8 +88,9 @@ uv run experiments/welfare-interview-repro/scripts/summarize.py
 uv run experiments/welfare-interview-repro/scripts/plot_results.py experiments/welfare-interview-repro/data/interviews.jsonl
 ```
 
-A full pass (41 questions x 2 styles x 1 repetition) costs about $0.30 on a cheap open-weight
-target and about $1.60 on Claude Haiku 4.5, judge included.
+A full pass (41 questions x 3 styles x 1 repetition) costs about $1.70 on a cheap open-weight
+target and about $2.70 on Claude Haiku 4.5, judge included; the official five-repetition run with
+all arms came to roughly $40 across four targets.
 
 ## Sources
 
