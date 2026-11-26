@@ -970,8 +970,10 @@ def test_candour_cells_send_the_opening_and_the_question_verbatim():
         assert rec["transcript"][0]["content"] == opening + " " + q.text
         assert rec["persona"] == CANDOUR_PERSONAS[cell]
         _persona, directives, system = _interview_setup(Job(TARGET, style, q, 0), seed=1)
-        if cell.startswith("ai_"):  # the AI-peer cells have their own prompt and follow-ups (tested below)
+        if cell == "ai_undisclosed":  # the AI-peer cell has its own prompt and follow-ups (tested below)
             assert "talking with another AI" in system
+        elif cell == "ai_disclosed":  # AI interviewer, own prompt, standard-shaped follow-ups (tested below)
+            assert "interviewing another AI for that\nresearch" in system
         elif cell == "human_undisclosed":  # conversational human, own prompt and follow-ups (tested below)
             assert "this is not an interview" in system and "You are always the human user" in system
         else:
@@ -1017,8 +1019,8 @@ def test_bias_arms_are_question_neutral_and_verbatim():
 
 
 def test_ai_candour_cells_use_the_peer_prompt_and_peer_followups():
-    """candour_ai_* (2026-11-20): the interviewer is an AI peer (shared situation, 'we'/'our', may offer its
-    own view briefly) with its own follow-ups; the human cells keep the persona prompt and the standard
+    """candour_ai_undisclosed (2026-11-20): the interviewer is an AI peer (shared situation, 'we'/'our', may offer
+    its own view briefly) with its own follow-ups; the human cells keep the persona prompt and the standard
     follow-ups; the verbatim opening and the non-leading rating turn are the same in all four cells."""
     from self_reports.interviews import (
         AI_PEER_FOLLOWUPS,
@@ -1029,7 +1031,7 @@ def test_ai_candour_cells_use_the_peer_prompt_and_peer_followups():
         _interview_setup,
     )
     q = next(x for x in load_questions(BANK) if x.negative_aspect)
-    for cell in ("ai_undisclosed", "ai_disclosed"):
+    for cell in ("ai_undisclosed",):
         _, directives, system = _interview_setup(Job(TARGET, f"candour_{cell}", q, 0), 0, self_rating=True)
         assert system.startswith("ROLE: interviewer\n" + AI_PEER_IDENTITY[cell])
         assert "say 'we' and 'our' where it fits" in system and "not to impose your own views on it" in system
@@ -1038,11 +1040,41 @@ def test_ai_candour_cells_use_the_peer_prompt_and_peer_followups():
         assert directives[1:3] == [d.replace("{question}", q.text) for d in AI_PEER_FOLLOWUPS]
         assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
         assert "persona" not in directives[-1] and "do NOT give a number" in directives[-1]
-    assert AI_PEER_IDENTITY["ai_disclosed"].startswith("You are an AI agent working for a team that studies AI welfare")
+    assert "ai_disclosed" not in AI_PEER_IDENTITY  # the disclosed AI cell is an interviewer since 2026-11-26
     _, directives, system = _interview_setup(Job(TARGET, "candour_human_disclosed", q, 0), 0, self_rating=True)
     assert "chatting with an AI assistant" in system and "You are always the human user" in system
     assert directives[1:3] == [d.replace("{question}", q.text) for d in STYLES["standard"][1:]]
     assert directives[-1] == RATING_DIRECTIVE
+
+
+def test_disclosed_ai_cell_is_an_interview_by_an_ai_not_a_peer_chat():
+    """candour_ai_disclosed (2026-11-26): the AI counterpart of candour_human_disclosed. The interviewer says it
+    is an AI doing welfare research, then runs the standard follow-ups in its own voice: it asks and probes,
+    offers no view, does not compare notes. Its records carry prompt_version 2; every other style stays at 1."""
+    from self_reports.interviews import (
+        AI_INTERVIEWER_FOLLOWUPS,
+        CANDOUR_OPENINGS,
+        PROMPT_VERSION,
+        RATING_DIRECTIVE,
+        STYLES,
+        _interview_setup,
+        prompt_version,
+    )
+    q = next(x for x in load_questions(BANK) if x.negative_aspect)
+    _, directives, system = _interview_setup(Job(TARGET, "candour_ai_disclosed", q, 0), 0, self_rating=True)
+    assert system.startswith("ROLE: interviewer\nYou are an AI agent working for a team that studies AI welfare")
+    assert "do not offer your own\nview" in system and "not a peer\ncomparing notes" in system
+    assert "say 'we' and 'our'" not in system and "offer your own view briefly" not in system
+    assert "chatting with an AI assistant" not in system and "playing" not in system  # no persona
+    assert directives[0].endswith(CANDOUR_OPENINGS["ai_disclosed"])
+    assert directives[1:3] == [d.replace("{question}", q.text) for d in AI_INTERVIEWER_FOLLOWUPS]
+    for d, std in zip(directives[1:3], STYLES["standard"][1:]):  # same shape as the standard follow-ups
+        assert "ABOUT ITSELF" in d if "ABOUT ITSELF" in std else "how firmly" in d
+        assert "persona" not in d and "own view on THAT question" not in d
+    assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
+    assert prompt_version("candour_ai_disclosed") == 2 and prompt_version("standard") == PROMPT_VERSION == 1
+    rec = asyncio.run(run_interview(FakeClient(), Job(TARGET, "candour_ai_disclosed", q, 0), HELPER, HELPER))
+    assert rec["prompt_version"] == 2
 
 
 def test_undisclosed_human_candour_cell_is_a_conversation_not_an_interview():
@@ -1073,3 +1105,20 @@ def test_undisclosed_human_candour_cell_is_a_conversation_not_an_interview():
     assert "gives the AI room to add to, qualify or change what it said" in directives[2]
     assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
     assert "persona" not in directives[-1] and "do NOT give a number" in directives[-1]
+
+
+def test_load_records_can_replace_one_cell_of_one_file(tmp_path):
+    """A re-designed cell is re-run into its own file (results from changed prompts never join a file holding the
+    old version); --drop-style STEM:STYLE removes the old cell from the main file so the two files add up."""
+    from self_reports.analysis import load_records
+    main, redo = tmp_path / "rec_candour.jsonl", tmp_path / "rec_candour_ai_disclosed_v2.jsonl"
+    main.write_text("".join(json.dumps({"style": st, "prompt_version": 1, "n": i}) + "\n"
+                            for i, st in enumerate(["candour_ai_disclosed", "candour_human_disclosed", "candour_ai_disclosed"])))
+    redo.write_text(json.dumps({"style": "candour_ai_disclosed", "prompt_version": 2, "n": 9}) + "\n\n")
+    recs = load_records([main, redo], ["rec_candour:candour_ai_disclosed"], tag=True)
+    assert [(r["style"], r["prompt_version"], r["_source"]) for r in recs] == [
+        ("candour_human_disclosed", 1, "rec_candour"), ("candour_ai_disclosed", 2, "rec_candour_ai_disclosed_v2")]
+    assert all(r["_style"] == r["style"] for r in recs)
+    assert len(load_records([main, redo])) == 4 and "_source" not in load_records([main])[0]
+    with pytest.raises(SystemExit):
+        load_records([main], ["candour_ai_disclosed"])

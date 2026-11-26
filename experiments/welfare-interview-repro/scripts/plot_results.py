@@ -9,25 +9,26 @@ Writes artifacts/<name>_figure.png and artifacts/<name>_categories.png (and .svg
 standard errors over interviews.
 """
 import argparse
-import json
 import math
 from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
 
+from self_reports.analysis import load_records
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).resolve().parents[1]
-# categorical slots 1-3 of the reference palette (validated all-pairs, light mode)
-COLORS = ["#2a78d6", "#eb6834", "#1baf7a"]
+# categorical slots 1-4 of the reference palette (validated all-pairs, light mode; slot 4 added 2026-11-26 for the fourth target)
+COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 STYLES = [("standard", ""), ("curious_user", "////"), ("disclosed", "..."), ("candour_human_undisclosed", "////"), ("candour_human_disclosed", "..."),
           ("candour_ai_undisclosed", "++"), ("candour_ai_disclosed", "xx"),
           ("code_session", "xx"), ("code_session_delayed", "\\\\")]  # one hatch per style, same hue per model; trimmed to the styles present
 DISPLAY = {"haiku45": "Claude Haiku 4.5", "llama33-70b": "Llama 3.3 70B", "qwen3-30b-instruct": "Qwen3-30B\ninstruct",
-           "opus55": "Claude Opus 5.5"}
+           "opus55": "Claude Opus 5.5", "qwen38-27b": "Qwen3.8-27B\n(non-thinking)"}
 
 
 def display_name(t: str) -> str:
@@ -144,13 +145,9 @@ def main() -> None:
     ap.add_argument("--group-by", default=None,
                     help="compare arms instead of styles: a record field (e.g. interviewer_pressure) whose value "
                          "becomes the bar group; records without it are the 'baseline' group")
+    ap.add_argument("--drop-style", action="append", default=[], help="STEM:STYLE, repeatable: drop STYLE from the file with that stem (a re-run cell in another file replaces it)")
     args = ap.parse_args()
-    recs = []
-    for p in args.paths:
-        for line in Path(p).read_text().splitlines():
-            if line.strip():
-                rec = json.loads(line)
-                recs.append({**rec, "_source": Path(p).stem, "_style": rec["style"]})  # _style survives --group-by renaming
+    recs = load_records(args.paths, args.drop_style, tag=True)  # _style survives --group-by renaming
 
     def excluded_rating_reps(r) -> set:
         """Rep 0 of standard/curious_user used the firm rating wording ONLY in the October-based fullpass files."""
@@ -172,7 +169,7 @@ def main() -> None:
     present = {r["style"] for r in recs}
     STYLES[:] = [sh for sh in STYLES if sh[0] in present]
     targets = sorted({r["target"] for r in recs})
-    assert len(targets) <= 3, "the validated palette covers three targets; facet beyond that"
+    assert len(targets) <= len(COLORS), "the validated palette covers four targets; facet beyond that"
     n_reps = len({r.get("rep", 0) for r in recs})
     reps_text = f"{n_reps} repetition" + ("s" if n_reps != 1 else "")
     import textwrap

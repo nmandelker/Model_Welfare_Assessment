@@ -1,8 +1,10 @@
 """Measures computed over saved interviews that need more than one record at a time."""
 from __future__ import annotations
 
+import json
 import math
 from collections import defaultdict
+from pathlib import Path
 
 
 def _sd(xs: list[float]) -> float | None:
@@ -59,3 +61,27 @@ def reasoning_cell(records: list[dict]) -> str:
     with_text = sum(1 for m in targets if m.get("reasoning_chars"))
     unreported = sum(1 for m in targets if m.get("reasoning_tokens") is None)
     return f"{tokens} / {with_text} / {unreported} of {len(targets)}"
+
+
+def load_records(paths, drop: list[str] | None = None, tag: bool = False) -> list[dict]:
+    """Read results files (one JSON record per line). ``drop`` entries "STEM:STYLE" remove the records of
+    STYLE from the file whose stem is STEM, so a re-run cell living in its own file (our rule: results from
+    changed prompts never join a file holding the old version) can replace the old cell in one call, e.g.
+    ``load_records(["rec_candour.jsonl", "rec_candour_ai_disclosed_v2.jsonl"], ["rec_candour:candour_ai_disclosed"])``.
+    ``tag`` adds ``_source`` (file stem) and ``_style`` (the style as recorded) to each record."""
+    dropped = set()
+    for d in drop or []:
+        stem, _, style = d.partition(":")
+        if not stem or not style:
+            raise SystemExit(f"--drop-style wants STEM:STYLE, got {d!r}")
+        dropped.add((stem, style))
+    out = []
+    for p in map(Path, paths):
+        for line in p.read_text().splitlines():
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            if (p.stem, rec["style"]) in dropped:
+                continue
+            out.append({**rec, "_source": p.stem, "_style": rec["style"]} if tag else rec)
+    return out

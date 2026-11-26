@@ -2,11 +2,10 @@
 three hedges and confident denial), declined-premise rate and parse failures per target x style,
 and per question group. Prints markdown; --write saves artifacts/summary.md."""
 import argparse
-import json
 from collections import defaultdict
 from pathlib import Path
 
-from self_reports.analysis import consistency, reasoning_cell
+from self_reports.analysis import consistency, load_records, reasoning_cell
 
 HERE = Path(__file__).resolve().parents[1]
 
@@ -80,8 +79,9 @@ def main() -> None:
                     help="one or more results files (merged)")
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--judge-field", default="judge", help="'judge' or a re-judge field such as 'judge_v2'")
+    ap.add_argument("--drop-style", action="append", default=[], help="STEM:STYLE, repeatable: drop STYLE from the file with that stem (a re-run cell in another file replaces it)")
     args = ap.parse_args()
-    rows = [json.loads(line) for p in args.paths for line in Path(p).read_text().splitlines() if line.strip()]
+    rows = load_records(args.paths, args.drop_style)
     if args.judge_field != "judge":
         for r in rows:
             r["judge"] = r.get(args.judge_field)

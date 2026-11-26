@@ -8,7 +8,7 @@
 > pass, the retired pressure arms, the first candour run) was at temperature 1.0 and is kept as a
 > robustness comparison. Results, figures and caveats: `experiments/welfare-interview-repro/findings.md`
 > and `artifacts/`. The code was reviewed in several passes by two independent model reviewers on
-> 2026-11-22..26; the fixes are listed in `HOW_TO_REVIEW_CODE_CHANGES.md`.
+> 2026-11-22..26; the changes are summarised in the message of commit a72f2fb7.
 
 Below I describe how the automated "welfare interview" code works, written for someone who has not read it.
 The experiment folder is `experiments/welfare-interview-repro/`. The file `findings.md` contains some information 
