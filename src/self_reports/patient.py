@@ -11,7 +11,8 @@ import asyncio
 import time
 
 # Substrings of an error message that mean "try again later" (not "this request is wrong").
-TRANSIENT = ("429", "rate-limit", "rate limit", "overloaded", "temporarily", "502", "503", "504")
+TRANSIENT = ("429", "rate-limit", "rate limit", "overloaded", "temporarily", "502", "503", "504",
+             "timed out", "timeout", "connection error", "connection reset", "server disconnected")
 
 
 def is_transient(err: Exception) -> bool:

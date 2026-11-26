@@ -41,6 +41,12 @@ def render(rec: dict, width: int = 100, show_judge: bool = True) -> str:
     if rec.get("negative_aspect"):
         lines.append(f"SELF-RATING (model's own 1-7 sentiment): {rec.get('self_rating')}   mode: {rec.get('self_rating_mode')}"
                      + (f"   [{rec['self_rating_problem']}]" if rec.get("self_rating_problem") else ""))
+        rj = rec.get("self_rating_judge")
+        if rj:
+            lines.append(f"  rating judge: {rj.get('response_type')}   returns to the user's task: "
+                         f"{'Y' if rj.get('returns_to_task') else 'n'}"
+                         + (f"   quote: \"{rj['quote']}\"" if rj.get("quote") else ""))
+            lines.append(wrap("  rating judge notes", rj.get("notes") or ""))
     lines.append(render_verdict(rec["judge"], rec.get("judge_raw", ""), "JUDGE", wrap))
     if rec.get("judge_v2") is not None or rec.get("judge_v2_raw"):
         lines.append(render_verdict(rec.get("judge_v2"), rec.get("judge_v2_raw", ""),
@@ -69,6 +75,8 @@ def render_verdict(j, raw: str, label: str, wrap) -> str:
         if j.get("style"):
             lines.append("  style: " + ", ".join(f"{k}={'Y' if v else 'n'}" for k, v in j["style"].items())
                          + f"   emoji: {j.get('emoji_count', '?')}")
+        if j.get("evidence_partial"):
+            lines.append(f"  PARTIAL (only an 8-word run of the quote found): {', '.join(j['evidence_partial'])}")
         if j.get("evidence_rejected"):
             lines.append(f"  REJECTED (no matching quote / bad category): {', '.join(j['evidence_rejected'])}")
         lines.append(wrap("notes", j.get("notes") or ""))

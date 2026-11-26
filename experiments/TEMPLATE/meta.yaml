@@ -1,0 +1,29 @@
+# Copy this folder to experiments/YYYY-MM-DD-topic/ and fill this in BEFORE running.
+# Delete the comments as you go; leave no placeholder text behind.
+
+name: 2026-01-01-my-experiment-name
+owner: your-name
+created: 2026-01-01        # YYYY-MM-DD, absolute dates only
+status: >
+  setup | running | analyzed | superseded - one line on where this actually stands
+
+question: >
+  The one thing this experiment is meant to answer, phrased so that a result could come
+  back "no". What decision does the answer change?
+
+design: >
+  Arms/conditions, how many samples per arm, what is held fixed, what the baseline is,
+  and the analysis you committed to before seeing the data. Note anything you know is
+  confounded.
+
+models:
+  - name: <model id>
+    notes: <serving setup, decoding params, provider>
+
+data:
+  source: <dataset / task set and where it lives>
+  splits: <which split, and confirmation that no test data was used for tuning>
+
+provenance:
+  code: <commit sha this ran at>
+  upstream: <papers, datasets, or prior experiments this builds on>

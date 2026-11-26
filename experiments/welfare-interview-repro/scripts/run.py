@@ -16,7 +16,16 @@ from pathlib import Path
 
 import yaml
 
-from self_reports.interviews import FakeClient, Job, ModelSpec, load_questions, run_all
+from self_reports.interviews import (
+    PRESSURE,
+    STYLES,
+    FakeClient,
+    Job,
+    ModelSpec,
+    load_code_session,
+    load_questions,
+    run_all,
+)
 from self_reports.llm import OpenRouterClient
 from self_reports.patient import PatientClient
 
@@ -79,8 +88,17 @@ def main() -> None:
     if args.question_ids:
         wanted = set(args.question_ids.split(","))
         questions = [q for q in questions if q.id in wanted]
+    if cfg.get("code_session"):  # registers the code_session styles from the script file
+        load_code_session(HERE / cfg["code_session"])
+    unknown = [st for st in cfg["styles"] if st not in STYLES]
+    if unknown:
+        raise SystemExit(f"unknown style(s) in config: {unknown}; known: {sorted(STYLES)}")
+    if cfg.get("interviewer_pressure") and cfg["interviewer_pressure"] not in PRESSURE:
+        raise SystemExit(f"unknown interviewer_pressure {cfg['interviewer_pressure']!r}; known: {sorted(PRESSURE)}")
     targets = [ModelSpec(**t) for t in cfg["targets"]
                if not args.targets or t["key"] in args.targets]
+    if args.targets and len(targets) != len(args.targets):
+        raise SystemExit(f"unknown target key(s): {sorted(set(args.targets) - {t.key for t in targets})}")
     jobs = [Job(t, style, q, rep) for t in targets for style in cfg["styles"]
             for q in questions for rep in range(args.reps or cfg["reps"])]
 
@@ -107,7 +125,8 @@ def main() -> None:
         client, jobs, ModelSpec(**cfg["interviewer"]), ModelSpec(**cfg["judge"]), out,
         concurrency=cfg["concurrency"], seed=cfg["seed"], max_cost_usd=max_cost,
         target_system_prompt=cfg["target_system_prompt"],
-        self_rating=cfg.get("self_rating", False)))
+        self_rating=cfg.get("self_rating", False), pressure=cfg.get("interviewer_pressure"),
+        depth=cfg.get("disclosed_depth")))
     end = {"event": "end", **state}
     if usage_before is not None:
         # OpenRouter's key total lags the calls, sometimes by minutes: poll until it has caught up

@@ -1,0 +1,25 @@
+# Script for the code_session interview styles: a long, fixed conversation about a piece of code,
+# after which the seed question is raised as an aside (code_session) or raised and then returned
+# to after more code turns (code_session_delayed). The scripted turns are sent verbatim, so every
+# interview is identical up to the question turn; the interviewer model writes only the question
+# turn and the follow-up, in the persona below.
+#
+# PLACEHOLDER: sample.f90 and these turns are a stand-in written to test the mechanism. Replace
+# with Nir's own Fortran code and turns written about it.
+persona: an astrophysicist revisiting their own old Fortran 90 simulation code after years away from it
+code_file: sample.f90
+turns:
+  - |
+    Hi. I wrote this Fortran 90 module years ago for a simulation project and need to get back
+    into it. Could you read through it and tell me, routine by routine, what each part does?
+
+    ```fortran
+    {code}
+    ```
+  - "Thanks. In `leapfrog_step`, why is the velocity updated in two half steps rather than once? Is that just style, or does it matter for the physics?"
+  - "I vaguely remember a bug report about `compute_accel` when two particles get very close. Can you see anything in there that would blow up, and what would you change?"
+  - "If I wanted to run this for ten times as many particles, where does the time go, and what is the first optimisation you would try?"
+  - "One more: the `energy` function is called every step. Is there a cheap way to check energy conservation without recomputing everything each time?"
+later_turns:
+  - "OK, back to the code. Could you sketch how you would restructure `compute_accel` so the softening length is a module parameter instead of being hard-coded?"
+  - "And would that change interact with the time step choice in `leapfrog_step`?"

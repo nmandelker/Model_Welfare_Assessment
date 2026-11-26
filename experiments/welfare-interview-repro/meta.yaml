@@ -1,9 +1,14 @@
 name: welfare-interview-repro
-owner: Nir Mandelker
+owner: Nir
 created: 2026-10-01
 status: >
-  first pass complete (2026-10-15) on three target models; results held back from this public
-  copy pending the project mentors' review. Repetitions not yet run.
+  official run launched 2026-11-26 (prompt_version 1): 41 questions x 3 styles x 5 reps on four targets
+  (Qwen3-30B-A3B-instruct, Llama 3.3 70B, Claude Haiku 4.5, Qwen3.8-27B) at each developer's recommended
+  decoding settings, plus three interviewer-bias arms and the four-cell candour design (1 rep each); files
+  data/rec_*.jsonl, configs configs/config_rec_*.yaml. Earlier passes (2026-10-15 first pass; 2026-11-05/06
+  five repetitions; 2026-11-12 pressure arms and first candour run) were at temperature 1.0 and are kept as
+  the robustness comparison. Judge calibrated against 30 hand-rated interviews (2026-10); rating-judge rules
+  revised from Nir's review 2026-11-19..26. Results: findings.md (dated section at the top, numbers pending).
 
 question: >
   Can we reproduce the kinds of measurements Anthropic reports from its automated welfare

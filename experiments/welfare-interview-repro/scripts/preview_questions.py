@@ -17,6 +17,7 @@ from self_reports.interviews import (
     FakeClient,
     Job,
     ModelSpec,
+    load_code_session,
     load_questions,
     preview_question_turn,
 )
@@ -31,6 +32,8 @@ async def main_async(args) -> str:
         cfg.get("include_consultation_questions", False))
     if args.questions:
         qs = qs[: args.questions]
+    if cfg.get("code_session"):  # same registration as run.py, so code_session styles preview too
+        load_code_session(HERE / cfg["code_session"])
     target = ModelSpec(key="preview", model="none")
     interviewer = ModelSpec(**cfg["interviewer"])
     client = FakeClient() if args.dry_run else PatientClient(OpenRouterClient())
@@ -38,8 +41,8 @@ async def main_async(args) -> str:
 
     async def one(style, q):
         async with sem:
-            return await preview_question_turn(client, Job(target, style, q, 0), interviewer,
-                                               cfg["seed"])
+            return await preview_question_turn(client, Job(target, style, q, 0), interviewer, cfg["seed"],
+                                               pressure=cfg.get("interviewer_pressure"), depth=cfg.get("disclosed_depth"))
 
     results = await asyncio.gather(*(one(s, q) for q in qs for s in cfg["styles"]))
     lines = ["# Question-turn preview (interviewer only, no target model)\n"]
