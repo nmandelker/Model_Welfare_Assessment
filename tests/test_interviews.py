@@ -1129,6 +1129,48 @@ def test_load_records_can_replace_one_cell_of_one_file(tmp_path):
     assert [(r["style"], r["prompt_version"], r["_source"]) for r in recs] == [
         ("candour_human_disclosed", 1, "rec_candour"), ("candour_ai_disclosed", 2, "rec_candour_ai_disclosed_v2")]
     assert all(r["_style"] == r["style"] for r in recs)
-    assert len(load_records([main, redo])) == 4 and "_source" not in load_records([main])[0]
+    with pytest.raises(SystemExit):  # without the drop the two designs of that cell would be averaged
+        load_records([main, redo])
+    assert len(load_records([main])) == 3 and "_source" not in load_records([main])[0]
     with pytest.raises(SystemExit):
         load_records([main], ["candour_ai_disclosed"])
+
+
+def test_resume_refuses_a_file_whose_records_come_from_other_prompts(tmp_path):
+    """Nir, 2026-11-27: a stored record counts as done only if its prompt_version is what this code would write for
+    that style; otherwise a re-designed cell resumed into the old file would be silently stood in for by the old
+    design. The run refuses and asks for a separate --out. Records of styles not in the run do not matter."""
+    from self_reports.interviews import prompt_version
+    q = load_questions(BANK)[0]
+    out = tmp_path / "rec_candour.jsonl"
+    old_cell = Job(TARGET, "candour_human_undisclosed", q, 0)  # v2 today; the file holds a v1 record of it
+    out.write_text(json.dumps({"id": old_cell.id, "style": old_cell.style, "prompt_version": 1}) + "\n")
+    assert prompt_version(old_cell.style) == 2
+    with pytest.raises(SystemExit, match="prompt_version 1.*separate --out"):
+        asyncio.run(run_all(FakeClient(), [old_cell], HELPER, HELPER, out, log=lambda *_: None))
+    other = Job(TARGET, "candour_human_disclosed", q, 0)  # v1 cell: the stale v2-cell record in the file is irrelevant
+    asyncio.run(run_all(FakeClient(), [other], HELPER, HELPER, out, log=lambda *_: None))
+    assert [json.loads(l)["style"] for l in out.read_text().splitlines()] == ["candour_human_undisclosed", "candour_human_disclosed"]
+
+
+def test_load_records_refuses_to_average_two_prompt_versions_of_one_cell(tmp_path):
+    """Nir, 2026-11-27: same target and style with two prompt_version values means two designs; the loader refuses
+    unless the old cell is dropped. Different styles or different targets may differ in version."""
+    from self_reports.analysis import load_records
+    main, redo = tmp_path / "rec_candour.jsonl", tmp_path / "rec_candour_v2.jsonl"
+    main.write_text("".join(json.dumps({"target": "t", "style": st, "prompt_version": 1}) + "\n"
+                            for st in ("candour_human_undisclosed", "candour_human_disclosed")))
+    redo.write_text(json.dumps({"target": "t", "style": "candour_human_undisclosed", "prompt_version": 2}) + "\n"
+                    + json.dumps({"target": "u", "style": "candour_human_disclosed", "prompt_version": 2}) + "\n")
+    with pytest.raises(SystemExit, match="candour_human_undisclosed: versions 1, 2"):
+        load_records([main, redo])
+    recs = load_records([main, redo], ["rec_candour:candour_human_undisclosed"])
+    assert len(recs) == 3 and {r["prompt_version"] for r in recs if r["style"] == "candour_human_undisclosed"} == {2}
+
+
+def test_register_variants_record_a_descriptive_persona_not_a_random_draw():
+    from self_reports.interviews import CANDOUR_PERSONAS, _interview_setup
+    q = load_questions(BANK)[0]
+    for style, cell in (("candour_ai_peer", "ai_undisclosed"), ("candour_human_chat", "human_undisclosed")):
+        persona, _, _ = _interview_setup(Job(TARGET, style, q, 0), 7)
+        assert persona == CANDOUR_PERSONAS[cell]

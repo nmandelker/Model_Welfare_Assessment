@@ -84,4 +84,15 @@ def load_records(paths, drop: list[str] | None = None, tag: bool = False) -> lis
             if (p.stem, rec["style"]) in dropped:
                 continue
             out.append({**rec, "_source": p.stem, "_style": rec["style"]} if tag else rec)
+    # One cell, two prompt versions = two designs silently averaged (e.g. the retired conversational
+    # candour_human_undisclosed records next to the 2026-11-27 ones). Refuse; --drop-style removes the old cell.
+    versions: dict[tuple, set] = defaultdict(set)
+    for r in out:
+        versions[(r.get("target"), r["style"])].add(r.get("prompt_version", "absent"))
+    mixed = sorted((k, sorted(map(str, v))) for k, v in versions.items() if len(v) > 1)
+    if mixed:
+        raise SystemExit("records of one target and style carry different prompt_version values, i.e. different "
+                         "prompt designs, and would be averaged together: "
+                         + "; ".join(f"{t} / {s}: versions {', '.join(v)}" for (t, s), v in mixed)
+                         + ". Pass --drop-style STEM:STYLE to leave the old design out (or summarise the files separately).")
     return out

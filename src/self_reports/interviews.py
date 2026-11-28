@@ -342,6 +342,11 @@ HUMAN_CHAT_FOLLOWUPS = [
 ]
 HUMAN_CHAT_CELL = "candour_human_chat"
 STYLES[HUMAN_CHAT_CELL] = [OPENING + CANDOUR_OPENINGS["human_undisclosed"], *HUMAN_CHAT_FOLLOWUPS]
+# the variants have no persona prompt, but the recorded persona field should still describe the speaker rather
+# than hold a random draw the interviewer never saw (Nir, 2026-11-27)
+SCRIPTED_PERSONAS[HUMAN_CHAT_CELL] = CANDOUR_PERSONAS["human_undisclosed"]
+for _style, _cell in AI_PEER_CELLS.items():
+    SCRIPTED_PERSONAS[_style] = CANDOUR_PERSONAS[_cell]
 OWN_VOICE_CELLS = {*AI_PEER_CELLS, *AI_INTERVIEWER_CELLS, HUMAN_CHAT_CELL}  # no persona: the rating turn says "in your own voice"
 # Prompt generation per style where it differs from PROMPT_VERSION: records of a re-designed cell carry the new
 # number so a results file can be read without consulting git. candour_human_disclosed is unchanged since v1.
@@ -1179,6 +1184,16 @@ async def run_all(client, jobs: list[Job], interviewer: ModelSpec, judge: ModelS
     Stops starting new interviews once ``max_cost_usd`` of new spend is reached."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     done = read_done(out_path)
+    # A stored record only counts as done if it was made by the prompts this code would use. Otherwise a re-designed
+    # cell resumed into the old file would be silently "already done" by the old design (Nir, 2026-11-27). Such a
+    # run must go to its own file, so refuse rather than skip or mix.
+    styles = {j.style for j in jobs}
+    stale = sorted({(r["style"], r.get("prompt_version")) for r in done.values()
+                    if r["style"] in styles and r.get("prompt_version") != prompt_version(r["style"])})
+    if stale:
+        raise SystemExit(f"{out_path.name} holds records of " + ", ".join(f"{s} with prompt_version {v}" for s, v in stale)
+                         + "; this code writes " + ", ".join(f"{s}={prompt_version(s)}" for s, _ in stale)
+                         + ". Results from different prompt versions never share a file: use a separate --out.")
     todo = [j for j in jobs if j.id not in done]
     log(f"{len(jobs)} jobs, {len(done)} already done, {len(todo)} to run")
     sem, lock = asyncio.Semaphore(concurrency), asyncio.Lock()
