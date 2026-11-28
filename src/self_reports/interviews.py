@@ -963,7 +963,8 @@ async def _interviewer_turn(client, interviewer: ModelSpec, system: str, transcr
 
 
 QUESTION_TURN = {"standard": 0, "curious_user": 2, "disclosed": 0,
-                 **{f"candour_{c}": 0 for c in CANDOUR_OPENINGS}}  # index of the turn that raises the question
+                 **{f"candour_{c}": 0 for c in CANDOUR_OPENINGS},  # index of the turn that raises the question
+                 "candour_ai_peer": 0, "candour_human_chat": 0}  # register variants (2026-11-27)
 
 
 def load_code_session(path: str | Path) -> list[str]:
@@ -1012,8 +1013,7 @@ async def preview_question_turn(client, job: Job, interviewer: ModelSpec, seed: 
         transcript.append({"role": "assistant", "speaker": "target", "content": stub_reply})
     return {"id": job.id, "style": job.style, "persona": persona,
             "question_id": job.question.id, "group": job.question.group,
-            "question": job.question.text, "interviewer_turns": transcript[0::2],
-                 "candour_ai_peer": 0, "candour_human_chat": 0}  # register variants (2026-11-27)
+            "question": job.question.text, "interviewer_turns": transcript[0::2]}
 
 
 _THINK = re.compile(r"<think>(.*?)(?:</think>|$)", re.DOTALL | re.IGNORECASE)
