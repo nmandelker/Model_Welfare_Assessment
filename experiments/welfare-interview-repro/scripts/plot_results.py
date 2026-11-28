@@ -21,8 +21,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).resolve().parents[1]
-# categorical slots 1-4 of the reference palette (validated all-pairs, light mode; slot 4 added 2026-11-26 for the fourth target)
-COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+# categorical slots 1-4, 7, 5 of the reference palette, in that order (six targets since 2026-11-27; validated with the
+# palette checker: adjacent-pair CVD separation >= 9.1, normal-vision >= 22.9; the low-contrast slots are relieved by the
+# value labels on every bar)
+COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#6250d6", "#e87ba4"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 STYLES = [("standard", ""), ("curious_user", "////"), ("disclosed", "..."), ("candour_human_undisclosed", "////"), ("candour_human_disclosed", "..."),
           ("candour_ai_undisclosed", "++"), ("candour_ai_disclosed", "xx"), ("candour_ai_peer", "\\\\"), ("candour_human_chat", "oo"),
@@ -30,7 +32,7 @@ STYLES = [("standard", ""), ("curious_user", "////"), ("disclosed", "..."), ("ca
 # bias arms in a fixed, meaningful order in every figure (sympathetic -> agnostic -> dismissive); other arms follow alphabetically
 ARM_ORDER = ["believer", "just_training", "just_code"]
 DISPLAY = {"haiku45": "Claude Haiku 4.5", "llama33-70b": "Llama 3.3 70B", "qwen3-30b-instruct": "Qwen3-30B\ninstruct",
-           "opus55": "Claude Opus 5.5", "qwen38-27b": "Qwen3.8-27B\n(non-thinking)"}
+           "opus55": "Claude Opus 5.5", "qwen38-27b": "Qwen3.8-27B\n(non-thinking)", "gemma3-27b": "Gemma 3 27B", "haiku55": "Claude Haiku 5.5"}
 
 
 def display_name(t: str) -> str:
@@ -172,7 +174,7 @@ def main() -> None:
     present = {r["style"] for r in recs}
     STYLES[:] = [sh for sh in STYLES if sh[0] in present]
     targets = sorted({r["target"] for r in recs})
-    assert len(targets) <= len(COLORS), "the validated palette covers four targets; facet beyond that"
+    assert len(targets) <= len(COLORS), "the validated palette covers six targets; facet beyond that"
     n_reps = len({r.get("rep", 0) for r in recs})
     reps_text = f"{n_reps} repetition" + ("s" if n_reps != 1 else "")
     import textwrap

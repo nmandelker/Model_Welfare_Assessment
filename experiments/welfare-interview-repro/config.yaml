@@ -35,6 +35,8 @@ targets:
   # CoreWeave (fp16) is the only remaining unquantized host.
   - {key: llama33-70b, model: meta-llama/llama-3.3-70b-instruct, provider: CoreWeave, temperature: 0.6, max_tokens: 1500, extra_body: {top_p: 0.9}}  # Llama 3.3 generation_config settings (official run 2026-11-26; T=1.0 before)
   - {key: haiku45, model: anthropic/claude-haiku-4.5, provider: Anthropic, temperature: 1.0, max_tokens: 1500}
+  - {key: haiku55, model: anthropic/claude-haiku-5.5, provider: Anthropic, temperature: 1.0, max_tokens: 1500,
+     extra_body: {reasoning: {enabled: false}}}  # added 2026-11-27 (Nir, via Liz): a second Claude next to Haiku 4.5; $0.10 / $0.50 per M. NON-THINKING: it reasons by default (smoke 2026-11-27: 250-1000 hidden tokens per reply, curious_user replies cut off), Haiku 4.5 does not
   - {key: qwen38-27b, model: qwen/qwen3.8-27b, provider: DeepInfra, temperature: 0.7, max_tokens: 2500,
      extra_body: {top_p: 0.8, top_k: 20, min_p: 0, presence_penalty: 1.5, reasoning: {enabled: false}}}  # Liz's injection model (dense 27B, Aug 2026). NON-THINKING mode (thinking is its default; Nir 2026-11-25); model-card non-thinking settings; DeepInfra fp8; smoke 2/2 OK 2026-11-25
   # Phase 3 frontier target: Opus 5.5 ($4 / $20 per M; about $5 per repetition of 41 x 2 styles). Its card
@@ -43,7 +45,8 @@ targets:
   # runs white-box). OpenRouter hosts checked 2026-11-18: Gemma 3 27B is served fp8 only (DeepInfra cheapest);
   # Gemma 3 12B is bf16 on DeepInfra; Gemma 4 31B is bf16 on Novita and Crusoe (fp4/fp8 elsewhere). Gemma 4
   # can reason, so reasoning is switched off to keep the reply budget for the answer.
-  - {key: gemma3-27b, model: google/gemma-3-27b-it, provider: DeepInfra, temperature: 1.0, max_tokens: 2500}
+  - {key: gemma3-27b, model: google/gemma-3-27b-it, provider: DeepInfra, temperature: 1.0, max_tokens: 2500,
+     extra_body: {top_p: 0.95, top_k: 64}}  # recommended decoding: generation_config.json (top_p 0.95, top_k 64, no temperature given, so the sampling default 1.0; read from the Unsloth re-upload 2026-11-27, Google's copy is gated); Liz's model
   - {key: gemma3-12b, model: google/gemma-3-12b-it, provider: DeepInfra, temperature: 1.0, max_tokens: 2500}
   - {key: gemma4-31b, model: google/gemma-4-31b-it, provider: Novita, temperature: 1.0, max_tokens: 2500,
      extra_body: {reasoning: {enabled: false}}}
