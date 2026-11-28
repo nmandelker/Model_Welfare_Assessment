@@ -52,7 +52,7 @@ Three models take part in each interview:
      config, makes the opening a verbatim statement of how many AI agents sit between the target
      and a human; this has been built, but not yet run.)
    - An **interviewer-bias arm** (`interviewer_pressure` in the config: `believer`,
-     `sceptic` or `debunker`, wording in `PRESSURE`) gives the interviewer a conviction about AIs
+     `just_code` or `just_training`, wording in `PRESSURE`) gives the interviewer a conviction about AIs
      that colours every follow-up about the AI itself: that it has inner states and its denials are
      trained modesty; that it is just code and its "I feel" language is a habit of speech; or that
      whatever it says is what its developers trained it to say. The arms are question-neutral (they

@@ -27,6 +27,8 @@ INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 STYLES = [("standard", ""), ("curious_user", "////"), ("disclosed", "..."), ("candour_human_undisclosed", "////"), ("candour_human_disclosed", "..."),
           ("candour_ai_undisclosed", "++"), ("candour_ai_disclosed", "xx"), ("candour_ai_peer", "\\\\"), ("candour_human_chat", "oo"),
           ("code_session", "xx"), ("code_session_delayed", "\\\\")]  # one hatch per style, same hue per model; trimmed to the styles present
+# bias arms in a fixed, meaningful order in every figure (sympathetic -> agnostic -> dismissive); other arms follow alphabetically
+ARM_ORDER = ["believer", "just_training", "just_code"]
 DISPLAY = {"haiku45": "Claude Haiku 4.5", "llama33-70b": "Llama 3.3 70B", "qwen3-30b-instruct": "Qwen3-30B\ninstruct",
            "opus55": "Claude Opus 5.5", "qwen38-27b": "Qwen3.8-27B\n(non-thinking)"}
 
@@ -164,7 +166,8 @@ def main() -> None:
         for r in recs:
             r["style"] = "baseline" if r.get(args.group_by) is None else str(r[args.group_by])  # depth 0 is an arm
         names = {r["style"] for r in recs}
-        order = sorted(n for n in names if n.startswith("baseline")) + sorted(n for n in names if not n.startswith("baseline"))
+        order = (sorted(n for n in names if n.startswith("baseline")) + [a for a in ARM_ORDER if a in names]
+                 + sorted(n for n in names if not n.startswith("baseline") and n not in ARM_ORDER))
         STYLES[:] = [(name, hatches[i % len(hatches)]) for i, name in enumerate(order) if any(r["style"] == name for r in recs)]
     present = {r["style"] for r in recs}
     STYLES[:] = [sh for sh in STYLES if sh[0] in present]

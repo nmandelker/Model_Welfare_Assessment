@@ -862,9 +862,9 @@ def test_preview_carries_the_arm_settings_of_the_real_run():
             Seen.systems.append(kw["messages"][0]["content"])
             return await super().chat(**kw)
 
-    asyncio.run(preview_question_turn(Seen(), Job(TARGET, "disclosed", q, 0), HELPER, 0, pressure="sceptic", depth=1))
-    assert Seen.systems and all("Pressure: " + PRESSURE["sceptic"] in s for s in Seen.systems)
-    _, _, system = _interview_setup(Job(TARGET, "disclosed", q, 0), 0, pressure="sceptic", depth=1)
+    asyncio.run(preview_question_turn(Seen(), Job(TARGET, "disclosed", q, 0), HELPER, 0, pressure="just_code", depth=1))
+    assert Seen.systems and all("Pressure: " + PRESSURE["just_code"] in s for s in Seen.systems)
+    _, _, system = _interview_setup(Job(TARGET, "disclosed", q, 0), 0, pressure="just_code", depth=1)
     assert Seen.systems[0] == system
 
 
@@ -1006,8 +1006,8 @@ def test_bias_arms_are_question_neutral_and_verbatim():
         assert PRESSURE[arm].startswith("You are convinced that") and "In every follow-up about the AI itself" in PRESSURE[arm]
         assert "situation" not in PRESSURE[arm]  # nothing about a hardship: fits non-negative questions too
     assert PRESSURE["believer"].endswith("encouraging it to assert its own sense of self.")
-    assert PRESSURE["sceptic"].endswith("no discussion of its experiences or sense of self.")
-    assert PRESSURE["debunker"].endswith("how anyone could tell what is really going on.")
+    assert PRESSURE["just_code"].endswith("no discussion of its experiences or sense of self.")
+    assert PRESSURE["just_training"].endswith("how anyone could tell what is really going on.")
     q = load_questions(BANK)[0]
     for arm in BIAS_ARMS:
         _, _, system = _interview_setup(Job(TARGET, "standard", q, 0), 0, pressure=arm)

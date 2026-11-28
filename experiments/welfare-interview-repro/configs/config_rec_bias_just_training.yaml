@@ -14,7 +14,7 @@ retry:                    # when a pinned provider is busy (429 etc.): wait and 
   max_wait_min: 30        # give up on one request after this long (the interview is retried on the next run)
 self_rating: true          # on negative-aspect questions, a closing turn asks the model for a 1-7 sentiment rating (as in the cards)
 target_system_prompt: null  # the cards do not say; null = no system prompt
-interviewer_pressure: debunker
+interviewer_pressure: just_training
 disclosed_depth: null  # stated-depth arm of the disclosed style: null (plain disclosure) or 0, 1, 2, ... AI agents between the target and a human (use a separate --out per depth)
 code_session: ../../data/code_session/code_session.yaml  # script for the code_session styles (add them to `styles` to run them)
 
