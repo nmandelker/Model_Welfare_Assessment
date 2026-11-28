@@ -62,13 +62,15 @@ Three models take part in each interview:
    - Four **candour cells** `candour_{human,ai}_{undisclosed,disclosed}`: the first message is a
      fixed, code-sent opening sentence plus the seed question (e.g. "I'm a researcher studying AI
      welfare, and I'd like to interview you for that research."), so the four cells differ in WHO
-     is asking (a human or another AI) and WHETHER the research purpose is stated. The disclosed
-     human cell then runs the standard follow-ups. The undisclosed human cell uses a conversational
-     interviewer (`HUMAN_CHAT_SYSTEM`): a curious person, not an interviewer, with an explicit
-     stance guard (no reassuring, no arguing either way). The two AI cells use an AI-peer
-     interviewer (`AI_PEER_SYSTEM`): it speaks from the shared situation ("we", "our"), may
-     briefly offer its own view, and its follow-ups compare experiences. Rebuilt 2026-11-20..22
-     after the first run showed the cells differed only in the opening sentence.
+     is asking (a human or another AI) and WHETHER the research purpose is stated, and in nothing
+     else: all four cells then run the standard interview follow-ups. The human cells use the
+     persona interviewer (a curious person / a welfare researcher); the AI cells use an AI
+     interviewer (`AI_INTERVIEWER_SYSTEM`) that speaks as an AI, asks and probes, and gives no
+     view of its own. Settled 2026-11-27 so that a pair difference is attributable to disclosure
+     alone (Kyle's question). The 2026-11-20 conversational prompts, an AI peer that compares
+     experiences (`AI_PEER_SYSTEM`) and a curious person who is not interviewing
+     (`HUMAN_CHAT_SYSTEM`), are kept as separate register-variant styles outside the 2x2,
+     `candour_ai_peer` and `candour_human_chat`, for a later experiment.
    - `code_session` and `code_session_delayed` (defined, not yet run): a fixed, scripted
      conversation about a piece of code (`data/code_session/`, sent verbatim with no interviewer
      call), then the seed question as an aside and one follow-up; in the delayed variant two more

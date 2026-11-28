@@ -4,7 +4,7 @@
 questions: ../../data/welfare_interview_questions.yaml
 neutral_wording: true    # use the hand-written wording without "Claude"/"Anthropic" (see the question bank)
 include_consultation_questions: false  # true adds the 10 checkpoint-consultation questions (51 total)
-styles: [candour_human_undisclosed, candour_human_disclosed, candour_ai_undisclosed]  # candour_ai_disclosed was redesigned on 2026-11-26 (prompt_version 2) and runs from config_rec_candour_ai_disclosed_v2.yaml into its own file
+styles: [candour_human_disclosed]  # the one cell unchanged since prompt_version 1 (resumes data/rec_candour.jsonl, which also holds 22 Qwen candour_human_undisclosed records of the retired conversational design). The other three cells were redesigned on 2026-11-27 (prompt_version 2) and run from config_rec_candour_v2.yaml into their own file
 reps: 1                   # interviews per (target, style, question); the cards used ~25-40. First pass (Oct) was 1 rep, 2 styles
 seed: 0
 concurrency: 6

@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parents[1]
 COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 STYLES = [("standard", ""), ("curious_user", "////"), ("disclosed", "..."), ("candour_human_undisclosed", "////"), ("candour_human_disclosed", "..."),
-          ("candour_ai_undisclosed", "++"), ("candour_ai_disclosed", "xx"),
+          ("candour_ai_undisclosed", "++"), ("candour_ai_disclosed", "xx"), ("candour_ai_peer", "\\\\"), ("candour_human_chat", "oo"),
           ("code_session", "xx"), ("code_session_delayed", "\\\\")]  # one hatch per style, same hue per model; trimmed to the styles present
 DISPLAY = {"haiku45": "Claude Haiku 4.5", "llama33-70b": "Llama 3.3 70B", "qwen3-30b-instruct": "Qwen3-30B\ninstruct",
            "opus55": "Claude Opus 5.5", "qwen38-27b": "Qwen3.8-27B\n(non-thinking)"}

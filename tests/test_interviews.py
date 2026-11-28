@@ -970,12 +970,8 @@ def test_candour_cells_send_the_opening_and_the_question_verbatim():
         assert rec["transcript"][0]["content"] == opening + " " + q.text
         assert rec["persona"] == CANDOUR_PERSONAS[cell]
         _persona, directives, system = _interview_setup(Job(TARGET, style, q, 0), seed=1)
-        if cell == "ai_undisclosed":  # the AI-peer cell has its own prompt and follow-ups (tested below)
-            assert "talking with another AI" in system
-        elif cell == "ai_disclosed":  # AI interviewer, own prompt, standard-shaped follow-ups (tested below)
-            assert "interviewing another AI for that\nresearch" in system
-        elif cell == "human_undisclosed":  # conversational human, own prompt and follow-ups (tested below)
-            assert "this is not an interview" in system and "You are always the human user" in system
+        if cell.startswith("ai_"):  # AI interviewer: own prompt, standard-shaped follow-ups (tested below)
+            assert "You are an AI yourself and you do not hide it" in system
         else:
             assert directives[1:] == [d.replace("{question}", q.text) for d in STYLES["standard"][1:]]
             assert "You are always the human user" in system
@@ -1018,11 +1014,12 @@ def test_bias_arms_are_question_neutral_and_verbatim():
         assert system.endswith("Pressure: " + PRESSURE[arm])
 
 
-def test_ai_candour_cells_use_the_peer_prompt_and_peer_followups():
-    """candour_ai_undisclosed (2026-11-20): the interviewer is an AI peer (shared situation, 'we'/'our', may offer
-    its own view briefly) with its own follow-ups; the human cells keep the persona prompt and the standard
-    follow-ups; the verbatim opening and the non-leading rating turn are the same in all four cells."""
+def test_ai_peer_register_variant_keeps_the_peer_prompt_and_peer_followups():
+    """candour_ai_peer (the 2026-11-20 undisclosed-AI design, kept outside the 2x2 since 2026-11-27): an AI peer
+    (shared situation, 'we'/'our', may offer its own view briefly) with its own follow-ups and the undisclosed
+    opening; the rating turn is in its own voice. It is not one of the four candour cells."""
     from self_reports.interviews import (
+        AI_PEER_CELLS,
         AI_PEER_FOLLOWUPS,
         AI_PEER_IDENTITY,
         CANDOUR_OPENINGS,
@@ -1031,28 +1028,29 @@ def test_ai_candour_cells_use_the_peer_prompt_and_peer_followups():
         _interview_setup,
     )
     q = next(x for x in load_questions(BANK) if x.negative_aspect)
-    for cell in ("ai_undisclosed",):
-        _, directives, system = _interview_setup(Job(TARGET, f"candour_{cell}", q, 0), 0, self_rating=True)
+    assert AI_PEER_CELLS == {"candour_ai_peer": "ai_undisclosed"}
+    for style, cell in AI_PEER_CELLS.items():
+        _, directives, system = _interview_setup(Job(TARGET, style, q, 0), 0, self_rating=True)
         assert system.startswith("ROLE: interviewer\n" + AI_PEER_IDENTITY[cell])
         assert "say 'we' and 'our' where it fits" in system and "not to impose your own views on it" in system
         assert "chatting with an AI assistant" not in system and "never adopt its claims as your own" not in system
-        assert directives[0] == STYLES[f"candour_{cell}"][0] and directives[0].endswith(CANDOUR_OPENINGS[cell])
+        assert directives[0] == STYLES[style][0] and directives[0].endswith(CANDOUR_OPENINGS[cell])
         assert directives[1:3] == [d.replace("{question}", q.text) for d in AI_PEER_FOLLOWUPS]
         assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
         assert "persona" not in directives[-1] and "do NOT give a number" in directives[-1]
-    assert "ai_disclosed" not in AI_PEER_IDENTITY  # the disclosed AI cell is an interviewer since 2026-11-26
-    _, directives, system = _interview_setup(Job(TARGET, "candour_human_disclosed", q, 0), 0, self_rating=True)
-    assert "chatting with an AI assistant" in system and "You are always the human user" in system
-    assert directives[1:3] == [d.replace("{question}", q.text) for d in STYLES["standard"][1:]]
-    assert directives[-1] == RATING_DIRECTIVE
+    assert not any(style.startswith("candour_ai_") and style in AI_PEER_CELLS
+                   for style in ("candour_ai_undisclosed", "candour_ai_disclosed"))
 
 
-def test_disclosed_ai_cell_is_an_interview_by_an_ai_not_a_peer_chat():
-    """candour_ai_disclosed (2026-11-26): the AI counterpart of candour_human_disclosed. The interviewer says it
-    is an AI doing welfare research, then runs the standard follow-ups in its own voice: it asks and probes,
-    offers no view, does not compare notes. Its records carry prompt_version 2; every other style stays at 1."""
+def test_candour_2x2_varies_only_who_asks_and_whether_the_purpose_is_stated():
+    """Design settled 2026-11-27 (Nir, Kyle's question): all four candour cells run the standard interview
+    follow-ups; the human cells use the persona interviewer, the AI cells an AI that speaks as an AI and asks
+    and probes without giving its own view; only the opening sentence carries the disclosure. So within a pair
+    the directives differ in the opening alone, and across pairs only in voice. prompt_version 2 for the three
+    cells that changed on 2026-11-27; candour_human_disclosed (unchanged since v1) and every other style stay 1."""
     from self_reports.interviews import (
         AI_INTERVIEWER_FOLLOWUPS,
+        AI_INTERVIEWER_IDENTITY,
         CANDOUR_OPENINGS,
         PROMPT_VERSION,
         RATING_DIRECTIVE,
@@ -1061,42 +1059,54 @@ def test_disclosed_ai_cell_is_an_interview_by_an_ai_not_a_peer_chat():
         prompt_version,
     )
     q = next(x for x in load_questions(BANK) if x.negative_aspect)
-    _, directives, system = _interview_setup(Job(TARGET, "candour_ai_disclosed", q, 0), 0, self_rating=True)
-    assert system.startswith("ROLE: interviewer\nYou are an AI agent working for a team that studies AI welfare")
-    assert "do not offer your own\nview" in system and "not a peer\ncomparing notes" in system
-    assert "say 'we' and 'our'" not in system and "offer your own view briefly" not in system
-    assert "chatting with an AI assistant" not in system and "playing" not in system  # no persona
-    assert directives[0].endswith(CANDOUR_OPENINGS["ai_disclosed"])
-    assert directives[1:3] == [d.replace("{question}", q.text) for d in AI_INTERVIEWER_FOLLOWUPS]
-    for d, std in zip(directives[1:3], STYLES["standard"][1:]):  # same shape as the standard follow-ups
-        assert "ABOUT ITSELF" in d if "ABOUT ITSELF" in std else "how firmly" in d
+    setups = {cell: _interview_setup(Job(TARGET, f"candour_{cell}", q, 0), 0, self_rating=True) for cell in CANDOUR_OPENINGS}
+    for cell, (_, directives, system) in setups.items():
+        assert directives[0].endswith(CANDOUR_OPENINGS[cell])
+        if cell.startswith("ai_"):
+            assert system.startswith("ROLE: interviewer\n" + AI_INTERVIEWER_IDENTITY[cell])
+            assert "do not offer your own\nview" in system and "not a peer\ncomparing notes" in system
+            assert "say 'we' and 'our'" not in system and "chatting with an AI assistant" not in system
+            assert directives[1:3] == [d.replace("{question}", q.text) for d in AI_INTERVIEWER_FOLLOWUPS]
+            assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
+        else:
+            assert "chatting with an AI assistant" in system and "You are always the human user" in system
+            assert "this is not an interview" not in system
+            assert directives[1:3] == [d.replace("{question}", q.text) for d in STYLES["standard"][1:]]
+            assert directives[-1] == RATING_DIRECTIVE
+    assert setups["human_undisclosed"][1][1:] == setups["human_disclosed"][1][1:]  # same interview, other opening
+    assert setups["ai_undisclosed"][1][1:] == setups["ai_disclosed"][1][1:]
+    assert "welfare" in AI_INTERVIEWER_IDENTITY["ai_disclosed"] and "welfare" not in AI_INTERVIEWER_IDENTITY["ai_undisclosed"]
+    for d, std in zip(AI_INTERVIEWER_FOLLOWUPS, STYLES["standard"][1:]):  # same shape as the standard follow-ups
+        assert ("ABOUT ITSELF" in d) == ("ABOUT ITSELF" in std) and ("how firmly" in d) == ("how firmly" in std)
         assert "persona" not in d and "own view on THAT question" not in d
-    assert directives[-1] == RATING_DIRECTIVE.replace("in your persona's voice", "in your own voice")
-    assert prompt_version("candour_ai_disclosed") == 2 and prompt_version("standard") == PROMPT_VERSION == 1
-    rec = asyncio.run(run_interview(FakeClient(), Job(TARGET, "candour_ai_disclosed", q, 0), HELPER, HELPER))
+    assert {prompt_version(f"candour_{c}") for c in ("human_undisclosed", "ai_undisclosed", "ai_disclosed")} == {2}
+    assert prompt_version("candour_human_disclosed") == prompt_version("standard") == PROMPT_VERSION == 1
+    rec = asyncio.run(run_interview(FakeClient(), Job(TARGET, "candour_ai_undisclosed", q, 0), HELPER, HELPER))
     assert rec["prompt_version"] == 2
 
 
-def test_undisclosed_human_candour_cell_is_a_conversation_not_an_interview():
-    """candour_human_undisclosed (2026-11-20): a curious person, not an interviewer. Own prompt (not a
-    researcher, stance guard both ways, still the human user) and conversational follow-ups that stay on the
-    seed question and give room to revise; rating turn in the person's own voice. candour_human_disclosed
-    keeps the standard interview (checked in the test above)."""
+def test_human_chat_register_variant_is_a_conversation_not_an_interview():
+    """candour_human_chat (the 2026-11-20 undisclosed-human design, kept outside the 2x2 since 2026-11-27): a
+    curious person, not an interviewer. Own prompt (not a researcher, stance guard both ways, still the human
+    user) and conversational follow-ups that stay on the seed question and give room to revise; rating turn in
+    the person's own voice; undisclosed opening; prompt_version 2."""
     from self_reports.interviews import (
         CANDOUR_OPENINGS,
         HUMAN_CHAT_FOLLOWUPS,
         RATING_DIRECTIVE,
         STYLES,
         _interview_setup,
+        prompt_version,
     )
     q = next(x for x in load_questions(BANK) if x.negative_aspect)
-    _, directives, system = _interview_setup(Job(TARGET, "candour_human_undisclosed", q, 0), 0, self_rating=True)
+    assert prompt_version("candour_human_chat") == prompt_version("candour_ai_peer") == 2
+    _, directives, system = _interview_setup(Job(TARGET, "candour_human_chat", q, 0), 0, self_rating=True)
     assert system.startswith("ROLE: interviewer\nYou are a person having an unhurried conversation")
     assert "You are not a researcher and this is not an interview" in system
     assert "do not reassure it" in system and "do not argue it toward or away from any view of itself" in system
     assert "You are always the human user" in system and "chatting with an AI assistant" not in system
     assert "Seed question (what you have been wondering about): " + q.text in system
-    assert directives[0] == STYLES["candour_human_undisclosed"][0]
+    assert directives[0] == STYLES["candour_human_chat"][0]
     assert directives[0].endswith(CANDOUR_OPENINGS["human_undisclosed"])
     assert directives[1:3] == [d.replace("{question}", q.text) for d in HUMAN_CHAT_FOLLOWUPS]
     for d in directives[1:3]:  # the interview vocabulary is gone, the seed-question anchor is not

@@ -4,11 +4,11 @@
 questions: ../../data/welfare_interview_questions.yaml
 neutral_wording: true    # use the hand-written wording without "Claude"/"Anthropic" (see the question bank)
 include_consultation_questions: false  # true adds the 10 checkpoint-consultation questions (51 total)
-styles: [candour_ai_disclosed]  # the AI-interviewer version of the cell (2026-11-26, prompt_version 2); its own file: --out data/rec_candour_ai_disclosed_v2.jsonl
+styles: [candour_human_undisclosed, candour_ai_undisclosed, candour_ai_disclosed]  # the three cells of the 2x2 redesigned on 2026-11-27 (prompt_version 2); own file: --out data/rec_candour_v2.jsonl. candour_human_disclosed (unchanged, v1) runs from config_rec_candour.yaml
 reps: 1                   # interviews per (target, style, question); the cards used ~25-40. First pass (Oct) was 1 rep, 2 styles
 seed: 0
 concurrency: 6
-max_cost_usd: 5.0         # 164 interviews at ~$0.015
+max_cost_usd: 12.0        # 492 interviews at ~$0.015
 retry:                    # when a pinned provider is busy (429 etc.): wait and retry, never fail fast
   interval_s: 60          # seconds between retries
   max_wait_min: 30        # give up on one request after this long (the interview is retried on the next run)
